@@ -48,6 +48,101 @@ def toggle_guardar():
         #    btn_pausar.config(text="PAUSAR", bg="green", activebackground="green")
             estado_pausar = 0
 
+def cambiar_mililitros():
+    global mililitros_dosis, lbl_mililitros, root
+    
+    # Crear ventana de teclado numérico
+    ventana_teclado = tk.Toplevel(root)
+    ventana_teclado.title("Ingrese Mililitros")
+    ventana_teclado.geometry("300x400")
+    ventana_teclado.configure(bg="#b3e0ff")
+    ventana_teclado.resizable(False, False)
+    
+    # Variable para almacenar la entrada
+    entrada_valor = tk.StringVar(value=str(mililitros_dosis))
+    
+    # Frame para mostrar el valor actual
+    frame_display = tk.Frame(ventana_teclado, bg="#80CBFF", bd=2, relief="sunken")
+    frame_display.pack(fill="x", padx=5, pady=5)
+    
+    lbl_display = tk.Label(frame_display, textvariable=entrada_valor, 
+                           font=("Arial", 32, "bold"), bg="#80CBFF", fg="black")
+    lbl_display.pack(pady=10)
+    
+    lbl_unidad = tk.Label(frame_display, text="mL", font=("Arial", 16), bg="#80CBFF", fg="black")
+    lbl_unidad.pack(pady=5)
+    
+    # Frame para los botones numéricos
+    frame_botones = tk.Frame(ventana_teclado, bg="#b3e0ff")
+    frame_botones.pack(padx=5, pady=5, expand=True, fill="both")
+    
+    def agregar_digito(digito):
+        if entrada_valor.get() == "0":
+            entrada_valor.set(str(digito))
+        else:
+            entrada_valor.set(entrada_valor.get() + str(digito))
+    
+    def agregar_punto():
+        if "." not in entrada_valor.get():
+            entrada_valor.set(entrada_valor.get() + ".")
+    
+    def eliminar():
+        valor = entrada_valor.get()
+        if len(valor) > 0:
+            entrada_valor.set(valor[:-1])
+        if entrada_valor.get() == "":
+            entrada_valor.set("0")
+    
+    def aceptar():
+        global mililitros_dosis
+        try:
+            nuevo_valor = float(entrada_valor.get())
+            if 0 <= nuevo_valor <= 1000:
+                mililitros_dosis = nuevo_valor
+                lbl_mililitros.config(text=f"{mililitros_dosis:.1f} mL")
+                ventana_teclado.destroy()
+            else:
+                entrada_valor.set("Valor inválido")
+        except:
+            entrada_valor.set("Error")
+    
+    # Crear botones numéricos (3 columnas, 4 filas)
+    botones_numeros = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+        [0, ".", "DEL"]
+    ]
+    
+    for fila_idx, fila in enumerate(botones_numeros):
+        for col_idx, valor in enumerate(fila):
+            if valor == "DEL":
+                btn = tk.Button(frame_botones, text="DEL", font=("Arial", 14, "bold"),
+                               bg="#FF6B6B", fg="white", activebackground="#FF5252",
+                               command=eliminar)
+            elif valor == ".":
+                btn = tk.Button(frame_botones, text=".", font=("Arial", 14, "bold"),
+                               bg="#FFB74D", fg="white", activebackground="#FFA726",
+                               command=agregar_punto)
+            else:
+                btn = tk.Button(frame_botones, text=str(valor), font=("Arial", 18, "bold"),
+                               bg="#4CAF50", fg="white", activebackground="#45a049",
+                               command=lambda v=valor: agregar_digito(v))
+            
+            btn.grid(row=fila_idx, column=col_idx, sticky="nsew", padx=1, pady=1)
+    
+    # Configurar el peso de las filas y columnas
+    for i in range(4):
+        frame_botones.grid_rowconfigure(i, weight=1)
+    for i in range(3):
+        frame_botones.grid_columnconfigure(i, weight=1)
+    
+    # Botón ACEPTAR debajo de los números
+    btn_aceptar = tk.Button(ventana_teclado, text="✓ ACEPTAR", font=("Arial", 16, "bold"),
+                            bg="#00AA00", fg="white", activebackground="#009900",
+                            command=aceptar, height=1)
+    btn_aceptar.pack(fill="x", padx=1, pady=1)
+
 def agregar_log(num_rec, temp_log, ph_log):
     global txt_log
     from datetime import datetime
@@ -70,10 +165,11 @@ def date_time(lbl_fecha_hora):
 def main():
     global botones_dosis, color_normal, dosis_seleccionada, estado_iniciar, btn_iniciar
     global estado_pausar, btn_pausar
-    global txt_log
+    global txt_log, mililitros_dosis, lbl_mililitros, root
     dosis_seleccionada = None
     estado_iniciar = 0   #para indicar si esta en ejecución la tarea
     estado_pausar = 0   #para indicar si esta en ejecución la tarea
+    mililitros_dosis = 10.0  #valor inicial en mililitros
 
 
     root = tk.Tk()
@@ -170,21 +266,28 @@ def main():
     progress.place(relx=0.1, rely=0.53, anchor="nw", width=440, height=30)
     progress['value'] = num_recipientes_dosificados
 
-    estado = 3
+    estado = 2
 
     match estado:
         case 1:
             lbl_dosificacion = tk.Label(frame_dosificacion, text="ACTIVO", \
                           font=("Arial", 24), bg=moradito, fg="black")
-            lbl_dosificacion.place(relx=0.3, rely=0.65, anchor="nw", width=230, height=40)
+            lbl_dosificacion.place(relx=0.1, rely=0.65, anchor="nw", width=230, height=40)
         case 2:
             lbl_dosificacion = tk.Label(frame_dosificacion, text="INACTIVO", \
                           font=("Arial", 24), bg=moradito, fg="black")
-            lbl_dosificacion.place(relx=0.3, rely=0.65, anchor="nw", width=230, height=40)
+            lbl_dosificacion.place(relx=0.1, rely=0.65, anchor="nw", width=230, height=40)
         case 3:
             lbl_dosificacion = tk.Label(frame_dosificacion, text="EN PAUSA", \
                           font=("Arial", 24), bg=moradito, fg="black")
-            lbl_dosificacion.place(relx=0.3, rely=0.65, anchor="nw", width=230, height=40)
+            lbl_dosificacion.place(relx=0.1, rely=0.65, anchor="nw", width=230, height=40)
+
+    # indicador mililitros a dosificar
+    lbl_mililitros = tk.Button(frame_dosificacion, text=f"{mililitros_dosis:.1f} mL", 
+                               font=("Arial", 20, "bold"), bg=verdecito, fg="black",
+                               activebackground=verdecito, activeforeground="black",
+                               command=cambiar_mililitros, relief="raised", bd=3)
+    lbl_mililitros.place(relx=0.55, rely=0.65, anchor="nw", width=207, height=40)
 
 
     # boton iniciar/detener
