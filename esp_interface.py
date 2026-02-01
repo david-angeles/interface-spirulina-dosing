@@ -1,14 +1,77 @@
-################################################################
-###   Interfaz para el control del sistema de dosificación   ###
-###   Autor: David Ángeles Rojas                             ###
-###   Email: david_angeles@tec.mx                            ###
-################################################################
+##################################################################
+###   Interfaz para el control del sistema de dosificación     ###
+###   Autor: David Ángeles Rojas                               ###
+###   Email: david_angelez@hotmail.com / david_angeles@tec.mx  ###
+##################################################################
 
 import datetime    #para mostrar fecha y hora
 from tkinter import PhotoImage #para importar logos
 from PIL import Image, ImageTk #para cambiar tamaño de imagenes (hay que instalar)
 from tkinter import ttk #para la barra de progreso
 import tkinter as tk
+from serial.tools import list_ports
+import serial
+import time
+
+
+############# para comunicacion serial ################
+
+def listar_puertos():
+    """Regresa una lista de strings con los puertos disponibles."""
+    return [p.device for p in list_ports.comports()]
+
+def abrir_serial(puerto=None, baud=115200, timeout=0.3):
+    """
+    Abre el puerto serial y regresa el objeto Serial.
+    - puerto=None: intenta escoger uno automáticamente
+    """
+    if puerto is None:
+        # intenta detectar un Arduino por descripción / fabricante
+        for p in list_ports.comports():
+            desc = (p.description or "").lower()
+            manuf = (p.manufacturer or "").lower()
+            if "arduino" in desc or "arduino" in manuf or "usbmodem" in (p.device or "").lower() or "usbserial" in (p.device or "").lower():
+                puerto = p.device
+                break
+
+    if puerto is None:
+        raise RuntimeError(f"No encontré Arduino. Puertos detectados: {listar_puertos()}")
+
+    ser = serial.Serial(puerto, baudrate=baud, timeout=timeout)
+    time.sleep(2)  # Arduino se resetea al abrir el puerto
+    try:
+        ser.reset_input_buffer()
+        ser.reset_output_buffer()
+    except Exception:
+        pass
+    return ser
+
+def enviar_linea(ser, texto: str):
+    """Envía una línea terminada en \\n."""
+    ser.write((texto.strip() + "\n").encode("utf-8"))
+
+def leer_linea(ser) -> str:
+    """Lee una línea. Regresa '' si no llegó nada dentro del timeout."""
+    try:
+        return ser.readline().decode("utf-8", errors="ignore").strip()
+    except (serial.SerialException, OSError):
+        return ""
+
+def ping_pong(ser, intentos=1) -> bool:
+    """Manda PING y espera PONG (requiere que Arduino lo implemente)."""
+    for _ in range(intentos):
+        enviar_linea(ser, "PING")
+        t0 = time.time()
+        while time.time() - t0 < 0.5:
+            r = leer_linea(ser)
+            if r == "PONG":
+                return True
+    return False
+
+
+####################################################################################
+
+
 
 def dosis_fnc (dosis):
     global dosis_seleccionada
@@ -166,6 +229,7 @@ def main():
     global botones_dosis, color_normal, dosis_seleccionada, estado_iniciar, btn_iniciar
     global estado_pausar, btn_pausar
     global txt_log, mililitros_dosis, lbl_mililitros, root
+    global ser
     dosis_seleccionada = None
     estado_iniciar = 0   #para indicar si esta en ejecución la tarea
     estado_pausar = 0   #para indicar si esta en ejecución la tarea
@@ -174,6 +238,22 @@ def main():
 
     root = tk.Tk()
     root.title("DOSIFICADOR DE ESPIRULINA AUTOMÁTICO TEC-IPN")
+
+    ser = None
+    try:
+        ser = abrir_serial(puerto=None, baud=115200, timeout=0.3)
+        print("Serial abierto:", ser.port)
+        
+    except Exception as e:
+        print("No pude abrir serial:", e)
+        conectado_arduino = False
+
+    if ser is not None:
+        ok = ping_pong(ser, intentos=2)
+        print("PING/PONG:", ok)
+        if not ok:
+            conectado_arduino = False
+
 
     width, height = 800, 480
     screen_w = root.winfo_screenwidth()
@@ -215,7 +295,8 @@ def main():
     frame_conectado = tk.Frame(root, bg="white")
     frame_conectado.place(relx=0.53, rely=0.0, anchor="nw", width=200, height=40)
 
-    conectado_arduino = True
+    #conectado_arduino = True
+    
 
     if conectado_arduino:
         lbl_conectado = tk.Label(frame_conectado, image=icono_conectado, bg=azul)
@@ -327,7 +408,7 @@ def main():
     txt_log.place(relx=0.0, rely=0.182, anchor="nw", width=495, height=115)
 
     agregar_log(1, 23.4, 7.1)
-    agregar_log(2, 23.5, 7.2)
+    agregar_log(2, 23.5, 999.2)
 
     ########### DATOS DE TELEMETRIA ###########
     frame_telemetria = tk.Frame(root, bg=azul, bd=2, relief="groove")
