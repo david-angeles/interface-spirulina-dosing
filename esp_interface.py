@@ -68,6 +68,46 @@ def ping_pong(ser, intentos=1) -> bool:
                 return True
     return False
 
+def enviar_start(ser) -> str:
+    """
+    Envía START y lee una respuesta rápida.
+    Regresa el string recibido (ej. 'ACK:START') o 'ERR:TIMEOUT'.
+    """
+    if ser is None:
+        return "ERR:NO_SERIAL"
+
+    try:
+        enviar_linea(ser, "START")
+        t0 = time.time()
+        while time.time() - t0 < 1:
+            resp = leer_linea(ser)
+            if resp:
+               break
+        #resp = leer_linea(ser)  # 1 lectura, con timeout del puerto
+        return resp if resp else "ERR:TIMEOUT"
+    except (serial.SerialException, OSError):
+        return "ERR:SERIAL"
+    
+def enviar_stop(ser) -> str:
+    """
+    Envía STOP y lee una respuesta rápida.
+    Regresa el string recibido (ej. 'ACK:STOP') o 'ERR:TIMEOUT'.
+    """
+    if ser is None:
+        return "ERR:NO_SERIAL"
+
+    try:
+        enviar_linea(ser, "STOP")
+        t0 = time.time()
+        while time.time() - t0 < 1:
+            resp = leer_linea(ser)
+            if resp:
+               break
+        #resp = leer_linea(ser)  # 1 lectura, con timeout del puerto
+        return resp if resp else "ERR:TIMEOUT"
+    except (serial.SerialException, OSError):
+        return "ERR:SERIAL"
+
 
 ####################################################################################
 
@@ -87,9 +127,22 @@ def dosis_fnc (dosis):
 def toggle_iniciar():
         global estado_iniciar, btn_iniciar
         if estado_iniciar == 0:
-            btn_iniciar.config(text="DETENER", bg="red", activebackground="red")
-            estado_iniciar = 1
+        #    btn_iniciar.config(text="DETENER", bg="red", activebackground="red")
+        #    estado_iniciar = 1
+
+        # intentamos iniciar en Arduino
+            r = enviar_start(ser)
+            agregar_log("SYS", f"START -> {r}", "-")
+
+            if r == "ACK:START":
+                btn_iniciar.config(text="DETENER", bg="red", activebackground="red")
+                estado_iniciar = 1
+            else:
+                # no cambies a "DETENER" si Arduino no confirmó
+                agregar_log("SYS", "No hubo ACK de START", "-")
         else:
+            r = enviar_stop(ser)
+            agregar_log("SYS", f"STOP -> {r}", "-")
             btn_iniciar.config(text="INICIAR", bg="green", activebackground="green")
             estado_iniciar = 0
 
@@ -237,8 +290,9 @@ def main():
 
 
     root = tk.Tk()
-    root.title("DOSIFICADOR DE ESPIRULINA AUTOMÁTICO TEC-IPN")
+    root.title("DOSIFICADOR DE ESPIRULINA AUTOMÁTICO TEC-IPN v0.3")
 
+    #### pueba de comunicación serial con Arduino ######
     ser = None
     try:
         ser = abrir_serial(puerto=None, baud=115200, timeout=0.3)
@@ -251,10 +305,21 @@ def main():
     if ser is not None:
         ok = ping_pong(ser, intentos=2)
         print("PING/PONG:", ok)
+        conectado_arduino = True
         if not ok:
             conectado_arduino = False
+    #####################################################
 
-
+    ############ enviar "iniciar"? ####################
+    ser = None
+    try:
+        ser = abrir_serial(puerto=None, baud=115200, timeout=0.3)
+        print("Serial abierto:", ser.port)
+    except Exception as e:
+        print("No pude abrir serial:", e)
+        ser = None
+    #####################################################
+    
     width, height = 800, 480
     screen_w = root.winfo_screenwidth()
     screen_h = root.winfo_screenheight()
