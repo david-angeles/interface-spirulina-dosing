@@ -763,6 +763,7 @@ def main():
 
 
 
+
     estado = 2  #para indicar el estado del sistema (2: sin iniciar, 1: iniciado, 2: pausa)
     dosis_seleccionada = None
     estado_iniciar = 0   #para indicar si esta en ejecución la tarea
@@ -772,6 +773,13 @@ def main():
 
     root = tk.Tk()
     root.title("DOSIFICADOR DE ESPIRULINA AUTOMÁTICO TEC-IPN v0.3")
+
+
+    secret_taps = 0
+    secret_last_ms = 0
+    SECRET_TAPS_REQUIRED = 7
+    SECRET_TIMEOUT_MS = 1200   # si pasan >1.2s entre taps, se reinicia
+
 
     #### pueba de comunicación serial con Arduino ######
     ser = None
@@ -858,6 +866,30 @@ def main():
 
     root.bind("<Escape>", lambda e: root.destroy())
 
+
+
+    #######cierre oculto con 7 taps ##########
+    def secret_exit(event=None):
+        nonlocal secret_taps, secret_last_ms
+
+        now = int(time.time() * 1000)
+
+        # si tardaste mucho entre taps, reinicia conteo
+        if now - secret_last_ms > SECRET_TIMEOUT_MS:
+            secret_taps = 0
+
+        secret_last_ms = now
+        secret_taps += 1
+
+        if secret_taps >= SECRET_TAPS_REQUIRED:
+            # reinicia para que no vuelva a dispararse
+            secret_taps = 0
+
+            # cierra limpio (usa tu on_close)
+            on_close()
+
+    ###############################################
+
     ######### paleta de colores ##########
     azul = "#b3e0ff"  # color de fondo
     azul_1 = "#80CBFF"  # otro color paleta colores
@@ -877,7 +909,19 @@ def main():
 
     lbl_banner = tk.Label(frame_banner, text="DOSIFICADOR DE ESPIRULINA TEC-IPN", \
                              font=("Arial", F(15)), bg=azul, fg="black")
+    lbl_banner.bind("<Button-1>", secret_exit)   # click/tap izquierdo
+
     lbl_banner.pack(fill="both", expand=True)
+
+    ########### icono para apagar ##########
+    import os
+    from tkinter import messagebox
+
+    # Icono de apagar
+    img_power = Image.open("icons/power.png").resize((sx(28), sy(28)))
+    icono_power = ImageTk.PhotoImage(img_power)
+
+
 
     ########## Frame para indicador de conexión ##########
 
@@ -890,6 +934,39 @@ def main():
 
     frame_conectado = tk.Frame(root, bg="white")
     frame_conectado.place(relx=0.53, rely=0.0, anchor="nw", width=sx(200), height=sy(40))
+
+    ########## Frame para indicador de conexión ##########
+    #frame_conectado = tk.Frame(root, bg="white")
+    #frame_conectado.place(relx=0.53, rely=0.0, anchor="nw", width=sx(200), height=sy(40))
+
+    # -------- ICONO POWER (A LA IZQUIERDA) ----------
+    import os
+    from tkinter import messagebox
+
+    img_power = Image.open("icons/power.png").convert("RGBA").resize((sx(28), sy(28)))
+    icono_power = ImageTk.PhotoImage(img_power)
+
+    def apagar_raspberry():
+        if not messagebox.askyesno("Apagar", "¿Seguro que deseas apagar la Raspberry Pi?"):
+            return
+
+        # (opcional) avisar al Arduino que pare
+        try:
+            if ser is not None:
+                enviar_linea(ser, "STOP")
+                time.sleep(0.1)
+        except Exception:
+            pass
+
+        # Apaga el sistema (lo ideal es NO llamar on_close antes; shutdown ya mata el proceso)
+        os.system("sudo shutdown -h now")
+
+    btn_power = tk.Button( frame_conectado, image=icono_power, bg=azul, activebackground=azul, bd=0, relief="flat", 
+                          command=apagar_raspberry)
+    btn_power.image = icono_power   # <- IMPORTANTÍSIMO: mantener referencia
+    btn_power.pack(side="left", padx=sx(4), pady=0)
+# -----------------------------------------------
+
 
     #conectado_arduino = True
     
