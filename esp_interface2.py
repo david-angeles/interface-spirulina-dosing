@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 ###################################################################
 ###   Interfaz para el control del sistema de dosificación      ###
 ###   Autores: David Ángeles Rojas // Pedro Ponce Cruz          ###
@@ -16,6 +18,15 @@ import serial
 import time
 import threading
 import queue
+
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+#img_power = Image.open(BASE_DIR / "icons" / "power.png")
+#img_conectado = Image.open(BASE_DIR / "icons" / "arduino_connected.png")
+#img_desconectado = Image.open(BASE_DIR / "icons" / "arduino_disconnected.png")
+
 
 import sys
 from serial.tools import list_ports
@@ -382,6 +393,7 @@ def cambiar_mililitros():
     
     # Crear ventana de teclado numérico
     ventana_teclado = tk.Toplevel(root)
+    
 
     #ventana_teclado = tk.Toplevel(root)  # o ventana = tk.Toplevel(root)
 
@@ -392,12 +404,21 @@ def cambiar_mililitros():
     ventana_teclado.attributes("-topmost", True)
     ventana_teclado.focus_force()
     ventana_teclado.update_idletasks()
-    ventana_teclado.after(200, lambda: ventana_teclado.attributes("-topmost", False))
+
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
+    w = int(sw * 0.55)   # 55% del ancho pantalla
+    h = int(sh * 0.75)   # 75% del alto pantalla
+
+    #centrar_ventana(ventana_teclado, w, h)
+
+    #ventana_teclado.after(200, lambda: ventana_teclado.attributes("-topmost", False))
+    ventana_teclado.after(10, lambda: centrar_ventana_en_root(ventana_teclado, root, w, h))
     # ------------------------------------------------------
 
 
     ventana_teclado.title("Ingrese Mililitros")
-    ventana_teclado.geometry(f"{sx(300)}x{sy(400)}")
+    #ventana_teclado.geometry(f"{sx(300)}x{sy(400)}")
     ventana_teclado.configure(bg="#b3e0ff")
     ventana_teclado.resizable(False, False)
     
@@ -498,7 +519,15 @@ def cambiar_recipientes():
     ventana.attributes("-topmost", True)
     ventana.focus_force()
     ventana.update_idletasks()
-    ventana.after(200, lambda: ventana.attributes("-topmost", False))
+
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
+    w = int(sw * 0.55)   # 55% del ancho pantalla
+    h = int(sh * 0.75)   # 75% del alto pantalla
+
+
+    ventana.after(10, lambda: centrar_ventana_en_root(ventana, root, w, h))
+    #ventana.after(200, lambda: ventana.attributes("-topmost", False))
     # ------------------------------------------------------
 
     ventana.title("Ingrese Recipientes")
@@ -738,6 +767,25 @@ def on_close():
         pass
     root.destroy()
 
+def centrar_ventana_en_root(win, root, w, h):
+    # Tamaño fijo del popup
+    win.geometry(f"{w}x{h}")
+
+    # Asegura que Tk ya “dibujó” root y win
+    root.update_idletasks()
+    win.update_idletasks()
+
+    # Posición del root (en pantalla)
+    rx = root.winfo_rootx()
+    ry = root.winfo_rooty()
+    rw = root.winfo_width()
+    rh = root.winfo_height()
+
+    # Centro relativo al root
+    x = rx + (rw - w) // 2
+    y = ry + (rh - h) // 2
+
+    win.geometry(f"{w}x{h}+{x}+{y}")
 
 
 
@@ -918,18 +966,22 @@ def main():
     from tkinter import messagebox
 
     # Icono de apagar
-    img_power = Image.open("icons/power.png").resize((sx(28), sy(28)))
+    #img_power = Image.open("icons/power.png").resize((sx(28), sy(28)))
+    img_power = Image.open(BASE_DIR / "icons" / "power.png")
     icono_power = ImageTk.PhotoImage(img_power)
+
 
 
 
     ########## Frame para indicador de conexión ##########
 
     # Cargar y ajustar el icono
-    img_conectado = Image.open("icons/arduino_connected.png").resize((sx(40), sy(40))) #tamaño en pix
+    #img_conectado = Image.open("icons/arduino_connected.png").resize((sx(40), sy(40))) #tamaño en pix
+    img_conectado = Image.open(BASE_DIR / "icons" / "arduino_connected.png")
     icono_conectado = ImageTk.PhotoImage(img_conectado)
 
-    img_desconectado = Image.open("icons/arduino_disconnected.png").resize((sx(24), sy(24)))
+    #img_desconectado = Image.open("icons/arduino_disconnected.png").resize((sx(24), sy(24)))
+    img_desconectado = Image.open(BASE_DIR / "icons" / "arduino_disconnected.png")
     icono_desconectado = ImageTk.PhotoImage(img_desconectado)
 
     frame_conectado = tk.Frame(root, bg="white")
@@ -943,7 +995,8 @@ def main():
     import os
     from tkinter import messagebox
 
-    img_power = Image.open("icons/power.png").convert("RGBA").resize((sx(28), sy(28)))
+    #img_power = Image.open("icons/power.png").convert("RGBA").resize((sx(28), sy(28)))
+    img_power = Image.open(BASE_DIR / "icons" / "power.png").convert("RGBA").resize((sx(28), sy(28)))
     icono_power = ImageTk.PhotoImage(img_power)
 
     def apagar_raspberry():
